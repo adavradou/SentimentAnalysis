@@ -22,5 +22,5 @@ class BaseModel(ABC):
         pass
 
     @abstractmethod
-    def evaluate(self):
+    def test(self):
         pass
