@@ -4,6 +4,7 @@ The LSTM model.
 """
 
 import os
+import sys
 import tensorflow as tf 
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Dropout, Embedding, Dense
@@ -11,6 +12,8 @@ from BaseModel import BaseModel
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.callbacks import EarlyStopping
 from sklearn.model_selection import train_test_split
+sys.path.insert(0, '../utils')
+from visualization import plot_loss_graph, plot_metric_graph
 
 
 class LSTM(BaseModel):
@@ -143,7 +146,10 @@ class LSTM(BaseModel):
         #           callbacks=model_callbacks)    
 
         model_history = self.model.fit(self.train_dataset, epochs=epochs, batch_size=batch_size, 
-                  steps_per_epoch=steps_per_epoch, validation_data=self.val_dataset)     		
+                  steps_per_epoch=steps_per_epoch, validation_data=self.val_dataset)  
+
+        plot_loss_graph(model_history)
+        plot_metric_graph(model_history)                  		
 
         # Saving Model
         self.model_path = self.config.model.model_path
@@ -162,7 +168,7 @@ class LSTM(BaseModel):
             options=None
         )
 
-        return model_history.history['loss'], model_history.history['val_loss']
+        # return model_history
 
 
 
@@ -197,11 +203,5 @@ class LSTM(BaseModel):
         model = tf.keras.models.load_model(model_path)
         model.evaluate(test_dataset)
 
-
-		#predictions = []
-        #for image, mask in self.dataset.take(1):
-            #predictions.append(self.model.predict(image))
-
-        #return predictions
 
 
