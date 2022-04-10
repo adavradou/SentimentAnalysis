@@ -10,11 +10,10 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Dropout, Embedding, Dense
 from BaseModel import BaseModel
 from tensorflow.keras.callbacks import ModelCheckpoint
-from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping
 from sklearn.model_selection import train_test_split
 sys.path.insert(0, '../utils')
 from visualization import plot_loss_graph, plot_metric_graph
-
 
 class LSTM(BaseModel):
            
@@ -110,19 +109,27 @@ class LSTM(BaseModel):
 
       return self.model
 
+      
 
+    """
+    Return the name of the saved model.
+    """
     def get_model_name(self):
-      return os.path.join(self.config.model.model_path, 'main_model.h5')
-      #args.output_path + '/model_' + str(k) + '.h5'
+      return os.path.join(self.config.model.model_path, 'best_model.ckpt')
 
 
+    """
+    Get training callbacks (ModelCheckpoint, ReduceLROnPlateau and EarlyStopping)
+    """
     def get_callbacks(self):
 
-      model_checkpoint = ModelCheckpoint(self.get_model_name(), monitor='val_loss', save_best_only=True)
-      early_stopping = EarlyStopping(monitor='val_loss', min_delta=0.001, patience=5)
+      model_checkpoint = ModelCheckpoint(self.get_model_name(), monitor='val_loss', 
+                save_best_only=True)
+      rls = ReduceLROnPlateau(monitor='val_loss', patience=5, cooldown=0)
+      early_stopping = EarlyStopping(monitor='val_loss', min_delta=1e-4, patience=5)
       # csv_logger = CSVLogger(args.output_path + '/train_log.csv', append=True, separator=';')
 
-      return [model_checkpoint, early_stopping]#[model_checkpoint, early_stopping, csv_logger]
+      return [model_checkpoint, rls, early_stopping]#[model_checkpoint, early_stopping, csv_logger]
 
       
     """
@@ -134,20 +141,19 @@ class LSTM(BaseModel):
         epochs = self.config.train.epochs
         steps_per_epoch = self.train_df.tweet.shape[0] // batch_size
         
-        model_callbacks = self.get_callbacks()
-
         self.model.compile(loss=self.config.train.loss, 
         optimizer=self.config.train.optimizer.type,
                   metrics=self.config.train.metrics)
 
+        callbacks = self.get_callbacks()
+
         # Fitting the model
-        # model_history = self.model.fit(self.train_dataset, epochs=epochs, batch_size=batch_size, 
-        #           steps_per_epoch=steps_per_epoch, validation_data=self.val_dataset,
-        #           callbacks=model_callbacks)    
+        model_history = self.model.fit(self.train_dataset, epochs=epochs, 
+                  batch_size=batch_size, 
+                  steps_per_epoch=steps_per_epoch, validation_data=self.val_dataset,
+                  callbacks=callbacks)     
 
-        model_history = self.model.fit(self.train_dataset, epochs=epochs, batch_size=batch_size, 
-                  steps_per_epoch=steps_per_epoch, validation_data=self.val_dataset)  
-
+        print("Plotting the loss and accuracy graphs...")
         plot_loss_graph(model_history)
         plot_metric_graph(model_history)                  		
 
@@ -155,7 +161,7 @@ class LSTM(BaseModel):
         self.model_path = self.config.model.model_path
         version = self.config.model.version
         export_path = os.path.join(self.config.model.model_path, 
-                  str(self.config.model.version))
+                  self.config.model.version)
         print('export_path = {}\n'.format(export_path))
 
         tf.keras.models.save_model(
@@ -167,8 +173,6 @@ class LSTM(BaseModel):
             signatures=None,
             options=None
         )
-
-        # return model_history
 
 
 
@@ -199,7 +203,7 @@ class LSTM(BaseModel):
                                                       batch_size=128, is_training=False)
 
         model_path = os.path.join(self.config.model.model_path, 
-                  str(self.config.model.version))
+                  self.config.model.version)
         model = tf.keras.models.load_model(model_path)
         model.evaluate(test_dataset)
 

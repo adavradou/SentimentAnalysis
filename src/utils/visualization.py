@@ -6,6 +6,9 @@ import seaborn as sns
 import nltk
 from nltk.corpus import stopwords
 
+from collections import Counter
+
+
 
 """
 Plots the model's loss during training.
@@ -33,12 +36,16 @@ Input: model history, path to save the plot, the name of the metric.
 """  
 
 def plot_metric_graph(model_hist):
-  metric  = model_hist.history['accuracy']
+  accuracy  = model_hist.history['accuracy']
+  val_accuracy  = model_hist.history['val_accuracy']
 
   plt.clf()
-  plt.plot(metric)
+  plt.plot(accuracy)
+  plt.plot(val_accuracy)
   plt.xlabel('Epochs')
   plt.ylabel('accuracy')
+  plt.title('Model accuracy')
+  plt.legend(['Train', 'Validation'], loc='center right')
   plt.show()
 
 
@@ -76,3 +83,23 @@ def visualize_tweet_length(data):
     print('Ratio of total words to total stop words:', len(total_words)/len(total_stop_words))
 
 
+"""
+Maps the labels to text.
+"""
+def decode_sentiment(label):
+    decode_map = {0: "NEGATIVE", 2: "NEUTRAL", 4: "POSITIVE"}
+    return decode_map[int(label)]
+
+
+"""
+Visualizes the distribution of the labels in a bar plot.
+"""
+def visualize_label_distribution(data):
+
+  decoded_data = data['sentiment'].apply(lambda x: decode_sentiment(x))
+
+  target_cnt = Counter(decoded_data)
+
+  plt.figure(figsize=(16,8))
+  plt.bar(target_cnt.keys(), target_cnt.values())
+  plt.title("Dataset labels distribution")
