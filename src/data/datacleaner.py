@@ -32,7 +32,15 @@ def remove_tags(tweet):
 
 
 """
-Performs tweet preprocessing, by removing emojis, urls and tags.
+Performs tweet preprocessing, by removing emojis, urls tags and expanding contractions.
+
+More specifically, two main preprocessing steps are applied:
+1) Removes all the people tags, emoticons, URLs, and splits hashtags into meaningful words. 
+For example, #helloworld will become “hello world”
+
+2) Expands all the contractions.
+For example, "I’d", becomes "I would" or "I had", "we're" becomes "we are", etc.
+
 Input:tweet for preprocessing(str)
 Output: preprocessed tweet(str)
 """

@@ -7,22 +7,21 @@ import os
 import sys
 import tensorflow as tf 
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, Dropout, Embedding, Dense
+from tensorflow.keras.layers import Input, Dropout, Embedding, Dense, Bidirectional
 from BaseModel import BaseModel
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping
 from sklearn.model_selection import train_test_split
 sys.path.insert(0, '../utils')
 from visualization import plot_loss_graph, plot_metric_graph
+from keras.models import Sequential
+
 
 class LSTM(BaseModel):
            
     def __init__(self, config):
       super().__init__(config)
 
-      self.input_shape = self.config.model.input_shape
-      self.start_ch = self.config.model.start_ch
-      self.input_dim = self.config.model.input_dim
       self.output_dim = self.config.model.output_dim
       self.return_sequences = self.config.model.return_sequences
       self.dense_nodes = self.config.model.dense_nodes
@@ -77,8 +76,14 @@ class LSTM(BaseModel):
     """
     Vectorizes the data using the Text Vectorization API from tf.keras 
     (https://www.tensorflow.org/api_docs/python/tf/keras/layers/TextVectorization).
-    It is common to apply it, before feeding the data to the model, in order to 
-    map text features to integer sequences.
+	
+	A TextVectorization layer should always be either adapted over a dataset or supplied with a vocabulary.
+	Calling adapt() on a TextVectorization layer is an alternative to passing in a precomputed vocabulary on construction via the vocabulary argument.
+	During adapt(), the layer will build a vocabulary of all string tokens seen in the dataset, sorted by occurance count, with ties broken by sort order of the tokens (high to low).
+	At the end of adapt(), if max_tokens is set, the voculary wil be truncated to max_tokens size. 
+	For example, adapting a layer with max_tokens=1000 will compute the 1000 most frequent tokens occurring in the input dataset.
+	If output_mode='tf-idf', adapt() will also learn the document frequencies of each token in the input dataset.
+	
     Input: num of maximum features(int), num of max length(int)
     """ 
     def data_vectorization(self, max_features=75000, max_len=50):
@@ -93,23 +98,27 @@ class LSTM(BaseModel):
     Output: the created model(Model)
     """ 
     def build_model(self):    
-      print(self.input_shape)  
-      words = Input(shape=self.input_shape, dtype=tf.string)
-      vectors = self.vec_layer(words)
-      embeddings = Embedding(input_dim=self.input_dim, output_dim=self.output_dim)(vectors)
-      output = tf.keras.layers.LSTM(self.start_ch, return_sequences=True, name='LSTM_1')(embeddings)
-      output = tf.keras.layers.LSTM(self.start_ch, name='LSTM_2')(output)
-      output = Dropout(self.dropout)(output)
-      output = Dense(self.dense_nodes, activation='relu')(output)
-      output = Dense(1,activation='sigmoid')(output)
 
-      self.model = Model(words,output)
+      self.model = tf.keras.Sequential([
+      self.vec_layer,
+      tf.keras.layers.Embedding(
+          input_dim=len(self.vec_layer.get_vocabulary()),
+          output_dim=self.output_dim,
+          # Use masking to handle the variable sequence lengths
+          mask_zero=True),
+      tf.keras.layers.Dropout(self.dropout),
+      tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(self.dense_nodes,
+      dropout=0.2, recurrent_dropout=0.2)),
+      tf.keras.layers.Dense(self.dense_nodes, activation='relu'),
+      tf.keras.layers.Dropout(self.dropout),
+      tf.keras.layers.Dense(1)
+      ])
 
       print(self.model.summary())
 
       return self.model
 
-      
+
 
     """
     Return the name of the saved model.
@@ -127,9 +136,8 @@ class LSTM(BaseModel):
                 save_best_only=True)
       rls = ReduceLROnPlateau(monitor='val_loss', patience=5, cooldown=0)
       early_stopping = EarlyStopping(monitor='val_loss', min_delta=1e-4, patience=5)
-      # csv_logger = CSVLogger(args.output_path + '/train_log.csv', append=True, separator=';')
 
-      return [model_checkpoint, rls, early_stopping]#[model_checkpoint, early_stopping, csv_logger]
+      return [model_checkpoint, rls, early_stopping]
 
       
     """
@@ -177,12 +185,10 @@ class LSTM(BaseModel):
 
 
     """
-    Splits the training data to train and validation using the train_test_split() 
-    function from sklearn.
+    Creates the data pipeline for the test dataset.
     Input: train_data(tf.data)
     """ 
     def create_test_pipeline(self, test_data):
-        #Split training dataset into train and validation sets
         self.test_df = test_data
  
         # Data pipelines for test datasets

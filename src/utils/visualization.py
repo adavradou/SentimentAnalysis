@@ -85,9 +85,12 @@ def visualize_tweet_length(data):
 
 """
 Maps the labels to text.
+0 -> NEGATIVE
+2 -> NEUTRAL
+4 -> POSITIVE
 """
 def decode_sentiment(label):
-    decode_map = {0: "NEGATIVE", 2: "NEUTRAL", 4: "POSITIVE"}
+    decode_map = {0: "NEGATIVE", 1: "POSITIVE"}
     return decode_map[int(label)]
 
 

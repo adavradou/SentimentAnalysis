@@ -1,3 +1,4 @@
 wordninja==2.0.0
 contractions==0.0.58
 emoji==1.6.0
+wget==3.2

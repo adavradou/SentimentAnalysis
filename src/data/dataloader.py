@@ -34,7 +34,7 @@ def download_dataset_from_url(url):
 Unzips dataset to a specified folder.
 Input: path to unzip dataset(str), dataset filename
 """
-def unzip_data_to_flder(path, filename):
+def unzip_data_to_folder(path, filename):
 
   create_dir(path)
   
